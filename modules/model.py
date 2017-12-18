@@ -116,8 +116,8 @@ class MDNet(nn.Module):
         x = self.branches[k](x)
         if out_layer=='fc6':
             return x
-        elif out_layer=='fc6_softmax':
-            return F.softmax(x)
+        # elif out_layer=='fc6_softmax':
+            # return F.softmax(x)
     
     def load_model(self, model_path):
         states = torch.load(model_path)

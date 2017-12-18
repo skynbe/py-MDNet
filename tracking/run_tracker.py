@@ -142,7 +142,9 @@ def run_mdnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
     
     # Train bbox regressor
     bbreg_examples = gen_samples(SampleGenerator('uniform', image.size, 0.3, 1.5, 1.1),
-                                 target_bbox, opts['n_bbreg'], opts['overlap_bbreg'], opts['scale_bbreg'])
+                                 target_bbox, 
+                                 opts['n_bbreg'], 
+                                 opts['overlap_bbreg'], opts['scale_bbreg'])
     bbreg_feats = forward_samples(model, image, bbreg_examples)
     bbreg = BBRegressor(image.size)
     bbreg.train(bbreg_feats, bbreg_examples, target_bbox)

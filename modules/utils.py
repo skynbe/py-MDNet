@@ -1,5 +1,6 @@
 from scipy.misc import imresize
 import numpy as np
+import lycon
 
 def overlap_ratio(rect1, rect2):
     '''
@@ -62,5 +63,6 @@ def crop_image(img, bbox, img_size=107, padding=16, valid=False):
         cropped[min_y_val-min_y:max_y_val-min_y, min_x_val-min_x:max_x_val-min_x, :] \
             = img[min_y_val:max_y_val, min_x_val:max_x_val, :]
     
-    scaled = imresize(cropped, (img_size, img_size))
+    # scaled = imresize(cropped, (img_size, img_size))
+    scaled = lycon.resize(cropped, width=img_size, height=img_size)
     return scaled
