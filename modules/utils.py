@@ -149,5 +149,6 @@ def crop_image(img, bbox, img_size=107, padding=0, valid=False, max_pooling=Fals
         print(img_size)
         print(cropped.shape)
         print(bbox)
-        scaled = lycon.resize(cropped, width=img_size, height=img_size, interpolation=0)
+        assert 1==2
+        # scaled = lycon.resize(cropped, width=img_size, height=img_size, interpolation=2)
     return scaled

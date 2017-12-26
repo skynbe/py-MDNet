@@ -24,7 +24,7 @@ opts['overlap_bbreg'] = [0.6, 1]
 opts['scale_bbreg'] = [1, 2]
 
 opts['lr_init'] = 0.0001
-opts['maxiter_init'] = 50
+opts['maxiter_init'] = 30
 opts['n_pos_init'] = 500
 opts['n_neg_init'] = 5000
 opts['overlap_pos_init'] = [0.7, 1]

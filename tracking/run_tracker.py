@@ -360,23 +360,9 @@ def run_mdnet(img_list, init_bbox, gt=None, savefig_dir='', display=False, args=
         total_tuning_time += current_tuning_time
         
         # Display
-        if display or savefig:
-            im.set_data(image)
-
-            if gt is not None:
-                gt_rect.set_xy(gt[i,:2])
-                gt_rect.set_width(gt[i,2])
-                gt_rect.set_height(gt[i,3])
-
-            rect.set_xy(result_bb[i,:2])
-            rect.set_width(result_bb[i,2])
-            rect.set_height(result_bb[i,3])
-            
-            if display:
-                plt.pause(.01)
-                plt.draw()
-            if savefig:
-                fig.savefig(os.path.join(savefig_dir,'%04d.jpg'%(i)),dpi=dpi)
+        display_bboxes(savefig_dir, image, [bbreg_bbox], gt[i], i, display, ["#ff0000", "#0000ff"])
+        # display_bboxes(savefig_dir, image, samples[top_idx], gt[i], i, display, ["#ff0000", "#0000ff"])
+    
 
         if gt is None:
             print "Frame %d/%d, Score %.3f, Time %.3f" % \
@@ -395,6 +381,41 @@ def run_mdnet(img_list, init_bbox, gt=None, savefig_dir='', display=False, args=
                                                               np.mean(success_curve), fps, (spf_total-total_tuning_time)/len(img_list)))
     return result, result_bb, fps, spf_total, total_tuning_time, len(img_list)
 
+
+def display_bboxes(savefig_dir, image, bboxes, gt, i, display, colors=None):
+    savefig = savefig_dir != ''
+    if savefig:
+        dpi = 80.0
+        figsize = (image.size[0] / dpi, image.size[1] / dpi)
+
+        fig = plt.figure(frameon=False, figsize=figsize, dpi=dpi)
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
+        ax.set_axis_off()
+        fig.add_axes(ax)
+        im = ax.imshow(image)
+            
+        for k, bbox in enumerate(bboxes):
+            if colors is None or len(colors)<=k:
+                edgecolor = "#ff0000"
+            else:
+                edgecolor = colors[k]    
+            rect = plt.Rectangle(tuple(bbox[:2]), bbox[2], bbox[3],
+                             linewidth=1, edgecolor=edgecolor, zorder=1, fill=False)
+            ax.add_patch(rect)
+            
+        if gt is not None:
+            gt_rect = plt.Rectangle(tuple(gt[:2]), gt[2], gt[3],
+                                    linewidth=3, edgecolor="#00ff00", zorder=1, fill=False)
+            ax.add_patch(gt_rect)
+        
+        if display:
+            plt.pause(.01)
+            plt.draw()
+            
+        if savefig:
+            fig.savefig(os.path.join(savefig_dir, '%04d.jpg' % (i)), dpi=dpi)
+            
+
 def run_tracker(args):
     # Generate sequence config
     img_list, init_bbox, gt, savefig_dir, display, result_path = gen_config(args)
@@ -411,6 +432,7 @@ def run_tracker(args):
     json.dump(res, open(result_path, 'w'), indent=2)
     return spf, tun_time, len_img
 
+
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
@@ -425,7 +447,7 @@ if __name__ == "__main__":
     print(args)
     assert(args.seq != '' or args.json != '')
     if args.seq == 'all':
-        seqs = list(filter(lambda x: os.path.isdir(os.path.join('../dataset/OTB', x)), os.listdir('../dataset/OTB')))
+        # seqs = list(filter(lambda x: os.path.isdir(os.path.join('../dataset/OTB', x)), os.listdir('../dataset/OTB')))
         seqs = ['Human4', 'Crowds', 'Soccer', 'Car4', 'Bolt', 'Tiger2', 'Deer', 'Woman', 'ClifBar', 'Bird1', 'Panda', 'BlurBody', 'Sylvester', 'David', 'Ironman', 'Liquor', 'Trellis', 'Shaking', 'Human6', 'Singer2', 'BlurCar2', 'Freeman4', 'Matrix', 'BlurOwl', 'DragonBaby', 'Skating2', 'RedTeam', 'Jumping', 'Girl', 'Skiing', 'CarScale', 'Diving', 'Biker', 'Couple', 'Dudek', 'Surfer', 'Human3', 'Football', 'MotorRolling', 'Jump', 'Box', 'Car1', 'Walking2', 'BlurFace', 'Skating1', 'CarDark', 'Human9', 'Walking', 'Basketball']
         total_spf = 0
         total_tun = 0
@@ -440,6 +462,3 @@ if __name__ == "__main__":
             
     else:
         run_tracker(args)
-    
-    
-   
