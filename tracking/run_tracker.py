@@ -393,14 +393,14 @@ def run_mdnet(img_list, init_bbox, gt=None, savefig_dir='', display=False, args=
     
     print("Total Accuracy: %.4f, Success Ratio: %.4f (%.4f fps), tracking time/image: %.4f" % (result_accuracy.mean(), 
                                                               np.mean(success_curve), fps, (spf_total-total_tuning_time)/len(img_list)))
-    return result, result_bb, fps
+    return result, result_bb, fps, spf_total, total_tuning_time, len(img_list)
 
 def run_tracker(args):
     # Generate sequence config
     img_list, init_bbox, gt, savefig_dir, display, result_path = gen_config(args)
 
     # Run tracker
-    result, result_bb, fps = run_mdnet(img_list, init_bbox, gt=gt, savefig_dir=savefig_dir, display=display, args=args)
+    result, result_bb, fps, spf, tun_time, len_img  = run_mdnet(img_list, init_bbox, gt=gt, savefig_dir=savefig_dir, display=display, args=args)
     
     # Save result
     res = {}
@@ -409,7 +409,7 @@ def run_tracker(args):
     res['fps'] = fps
     print(result_path)
     json.dump(res, open(result_path, 'w'), indent=2)
-
+    return spf, tun_time, len_img
 
 if __name__ == "__main__":
     
@@ -425,11 +425,19 @@ if __name__ == "__main__":
     print(args)
     assert(args.seq != '' or args.json != '')
     if args.seq == 'all':
-        # seqs = list(filter(lambda x: os.path.isdir(os.path.join('../dataset/OTB', x)), os.listdir('../dataset/OTB')))
+        seqs = list(filter(lambda x: os.path.isdir(os.path.join('../dataset/OTB', x)), os.listdir('../dataset/OTB')))
         seqs = ['Human4', 'Crowds', 'Soccer', 'Car4', 'Bolt', 'Tiger2', 'Deer', 'Woman', 'ClifBar', 'Bird1', 'Panda', 'BlurBody', 'Sylvester', 'David', 'Ironman', 'Liquor', 'Trellis', 'Shaking', 'Human6', 'Singer2', 'BlurCar2', 'Freeman4', 'Matrix', 'BlurOwl', 'DragonBaby', 'Skating2', 'RedTeam', 'Jumping', 'Girl', 'Skiing', 'CarScale', 'Diving', 'Biker', 'Couple', 'Dudek', 'Surfer', 'Human3', 'Football', 'MotorRolling', 'Jump', 'Box', 'Car1', 'Walking2', 'BlurFace', 'Skating1', 'CarDark', 'Human9', 'Walking', 'Basketball']
+        total_spf = 0
+        total_tun = 0
+        total_len = 0
         for seq in seqs:
             args.seq = seq
-            run_tracker(args)
+            spf, tun_time, len_img = run_tracker(args)
+            total_spf += spf
+            total_tun += tun_time
+            total_len += len_img
+        print("Total : %.1f images, : %.4f sec, ( :%.4f fps), tracking_time/image : %.4f " % (total_len, total_spf, total_len/total_spf, (total_spf - total_tun)/total_len))
+            
     else:
         run_tracker(args)
     

@@ -144,10 +144,10 @@ def crop_image(img, bbox, img_size=107, padding=0, valid=False, max_pooling=Fals
         
     try:
         # scaled = imresize(cropped, (img_size, img_size))
-        scaled = lycon.resize(cropped, width=img_size, height=img_size)
+        scaled = lycon.resize(cropped, width=img_size, height=img_size, interpolation=0)
     except:
         print(img_size)
         print(cropped.shape)
         print(bbox)
-        assert 1==3
+        scaled = lycon.resize(cropped, width=img_size, height=img_size, interpolation=0)
     return scaled
