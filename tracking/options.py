@@ -16,6 +16,7 @@ opts['batch_test'] = 256
 opts['n_samples'] = 256
 opts['trans_f'] = 0.6
 opts['scale_f'] = 1.05
+opts['aspect_f'] = 1.1
 opts['trans_f_expand'] = 1.5
 
 opts['n_bbreg'] = 1000

@@ -98,17 +98,18 @@ class MDNet(nn.Module):
                 params[k] = p
         return params
     
-    def forward(self, x, k=0, in_layer='conv1', out_layer='fc6'):
+    def forward(self, x, k=0, in_layer='conv1', out_layer='fc6', spat=False):
         #
         # forward model from in_layer to out_layer
 
         run = False
+        
         for name, module in self.layers.named_children():
             if name == in_layer:
                 run = True
             if run:
                 x = module(x)
-                if name == 'conv3':
+                if name == 'conv3' and not spat:
                     x = x.view(x.size(0),-1)
                 if name == out_layer:
                     return x
@@ -116,8 +117,6 @@ class MDNet(nn.Module):
         x = self.branches[k](x)
         if out_layer=='fc6':
             return x
-        # elif out_layer=='fc6_softmax':
-            # return F.softmax(x)
     
     def load_model(self, model_path):
         states = torch.load(model_path)

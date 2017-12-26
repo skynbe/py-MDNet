@@ -19,7 +19,10 @@ def gen_config(args):
         img_list.sort()
         img_list = [os.path.join(img_dir,x) for x in img_list]
 
-        gt = np.loadtxt(gt_path,delimiter=',')
+        try:
+            gt = np.loadtxt(gt_path,delimiter=',')
+        except:
+            gt = np.loadtxt(gt_path,delimiter='\t')
         init_bbox = gt[0]
         
         savefig_dir = os.path.join(save_home,seq_name)

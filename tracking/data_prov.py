@@ -21,8 +21,6 @@ class RegionExtractor():
         self.index = np.arange(len(samples))
         self.pointer = 0
 
-        self.mean = self.image.mean(0).mean(0).astype('float32')
-
     def __iter__(self):
         return self
 
