@@ -9,8 +9,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-
-
 import torch
 import torch.utils.data as data
 import torch.optim as optim
@@ -33,11 +31,10 @@ def nchw_image(image):
     # image: PIL.Image
     return np.array([np.asarray(image, dtype=np.float32)]).transpose(0, 3, 1, 2) - 128 # NCHW
 
-def forward_samples(model, image, samples, out_layer='conv3'):
+def forward_samples(model, image, samples, out_layer='conv_last'):
     model.eval()
     extractor = RegionExtractor(image, samples, opts['img_size'], opts['padding'], opts['batch_test'])
     for i, regions in enumerate(extractor):
-        
         regions = Variable(regions)
         if opts['use_gpu']:
             regions = regions.cuda()
@@ -48,17 +45,21 @@ def forward_samples(model, image, samples, out_layer='conv3'):
             feats = torch.cat((feats,feat.data.clone()),0)
     return feats
 
-def forward_roi_samples(model, images, samples, out_layer='conv3', spat=True):
+def forward_roi_samples(model, images, samples, out_layer='conv_last', spat=True):
     model.eval()
     # images = nchw_image(image)
     images = Variable(torch.from_numpy(images).float()).cuda()
     whole_feat = model(images, out_layer=out_layer, spat=spat)
+    
     whole_feat = whole_feat.data.cpu().numpy()
     whole_feat = whole_feat.transpose(0, 2, 3, 1)[0]
     height, width,  _ = whole_feat.shape
     samples = samples * [width, height, width, height]
 
-    pool = np.array([crop_image(whole_feat, sample, img_size=3, valid=True, max_pooling=False) for sample in samples]).transpose(0, 3, 1, 2)
+    pool = np.array([crop_image(whole_feat, sample, 
+                                # img_size=6, 
+                                img_size=3, 
+                                valid=True, roi_align=False) for sample in samples]).transpose(0, 3, 1, 2)
     pool = pool.reshape(pool.shape[0], -1)
     feats = torch.from_numpy(pool).cuda()
     return feats
@@ -77,7 +78,7 @@ def set_optimizer(model, lr_base, lr_mult=opts['lr_mult'], momentum=opts['moment
     return optimizer
 
 
-def train(model, criterion, optimizer, pos_feats, neg_feats, maxiter, in_layer='fc4'):
+def train(model, criterion, optimizer, pos_feats, neg_feats, maxiter, in_layer='fc_first'):
     model.train()
     
     batch_pos = opts['batch_pos']
@@ -117,6 +118,7 @@ def train(model, criterion, optimizer, pos_feats, neg_feats, maxiter, in_layer='
             model.eval()
             for start in range(0,batch_neg_cand,batch_test):
                 end = min(start+batch_test,batch_neg_cand)
+
                 score = model(batch_neg_feats[start:end], in_layer=in_layer)
                 if start==0:
                     neg_cand_score = score.data[:,1].clone()
@@ -153,6 +155,7 @@ def run_mdnet(img_list, init_bbox, gt=None, savefig_dir='', display=False, args=
 
     # Init model
     model = MDNet(opts['model_path'])
+    # model = FasterMDNet(opts['fast_model_path'])
     if opts['use_gpu']:
         model = model.cuda()
     model.set_learnable_params(opts['ft_layers'])
@@ -208,7 +211,11 @@ def run_mdnet(img_list, init_bbox, gt=None, savefig_dir='', display=False, args=
 
         # Extract pos/neg features
         pos_feats = forward_roi_samples(model, nchw_image(image), pos_examples_ratio)
+        # flipped_image = image.transpose(Image.FLIP_LEFT_RIGHT)
+        # pos_feats_flip = forward_roi_samples(model, nchw_image(flipped_image), pos_examples_ratio)
         neg_feats = forward_roi_samples(model, nchw_image(image), neg_examples_ratio)
+        # pos_feats = torch.cat((pos_feats,pos_feats_flip),0)
+        
 
     # Initial training
     print("Start initial training")
@@ -265,12 +272,12 @@ def run_mdnet(img_list, init_bbox, gt=None, savefig_dir='', display=False, args=
         # Estimate target bbox
         if args.base:
             samples = gen_samples(sample_generator, target_bbox, opts['n_samples'])
-            sample_scores = forward_samples(model, image, samples, out_layer='fc6')
+            sample_scores = forward_samples(model, image, samples, out_layer='fc_last')
         else:
             samples = gen_samples(sample_generator, target_bbox, opts['n_samples'])
             samples_ratio = samples / [width, height, width, height]
             samples_feats = forward_roi_samples(model, image_nchw, samples_ratio)
-            sample_scores = model(samples_feats, in_layer='fc4').data
+            sample_scores = model(samples_feats, in_layer='fc_first').data
         
         top_scores, top_idx = sample_scores[:,1].topk(5)
         top_idx = top_idx.cpu().numpy()
@@ -462,3 +469,4 @@ if __name__ == "__main__":
             
     else:
         run_tracker(args)
+        

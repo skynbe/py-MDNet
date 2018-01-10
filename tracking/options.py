@@ -4,8 +4,13 @@ opts = OrderedDict()
 opts['use_gpu'] = True
 
 opts['model_path'] = '../models/mdnet_vot-otb.pth'
-
+opts['lr_mult'] = {'fc6':10}
 opts['img_size'] = 107
+
+# opts['fast_model_path'] = '../models/fast_mdnet_1.pth'
+# opts['lr_mult'] = {'fc8':10}
+# opts['img_size'] = 227
+
 opts['padding'] = 16
 
 opts['batch_pos'] = 32
@@ -45,5 +50,5 @@ opts['long_interval'] = 10
 opts['w_decay'] = 0.0005
 opts['momentum'] = 0.9
 opts['grad_clip'] = 10
-opts['lr_mult'] = {'fc6':10}
+
 opts['ft_layers'] = ['fc']

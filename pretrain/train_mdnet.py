@@ -42,6 +42,7 @@ def train_mdnet():
         dataset[k] = RegionDataset(img_dir, img_list, gt, opts)
 
     ## Init model ##
+    # model = FasterMDNet(K=K)
     model = MDNet(opts['init_model_path'], K)
     if opts['use_gpu']:
         model = model.cuda()

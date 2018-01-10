@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import torch
 
+
 def append_params(params, module, prefix):
     for child in module.children():
         for k,p in child._parameters.iteritems():
@@ -101,9 +102,16 @@ class MDNet(nn.Module):
     def forward(self, x, k=0, in_layer='conv1', out_layer='fc6', spat=False):
         #
         # forward model from in_layer to out_layer
+        
+        if out_layer == 'conv_last':
+            out_layer = 'conv3'
+        elif out_layer == 'fc_last':
+            out_layer = 'fc6'
+            
+        if in_layer == 'fc_first':
+            in_layer = 'fc4'
 
         run = False
-        
         for name, module in self.layers.named_children():
             if name == in_layer:
                 run = True
@@ -167,3 +175,111 @@ class Precision():
         prec = (topk < pos_score.size(0)).float().sum() / (pos_score.size(0)+1e-8)
         
         return prec.data[0]
+    
+    
+
+class FasterMDNet(nn.Module):
+    def __init__(self, model_path=None, K=1):
+        super(FasterMDNet, self).__init__()
+        print("FasterMDNet")
+        self.K = K
+        
+        self.layers = nn.Sequential(OrderedDict([
+                ('conv1', nn.Sequential(nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
+                                        nn.ReLU(),
+                                        LRN(),
+                                        nn.MaxPool2d(kernel_size=3, stride=2))),
+                ('conv2', nn.Sequential(nn.Conv2d(64, 192, kernel_size=5, padding=2),
+                                        nn.ReLU(),
+                                        LRN(),
+                                        nn.MaxPool2d(kernel_size=3, stride=2))),
+                ('conv3', nn.Sequential(nn.Conv2d(192, 384, kernel_size=3, padding=1),
+                                        nn.ReLU())),
+                ('conv4', nn.Sequential(nn.Conv2d(384, 256, kernel_size=3, padding=1),
+                                        nn.ReLU())),
+                ('conv5', nn.Sequential(nn.Conv2d(256, 256, kernel_size=3, padding=1),
+                                        nn.ReLU(),
+                                        nn.MaxPool2d(kernel_size=3, stride=2))),
+                ('fc6',   nn.Sequential(nn.Dropout(0.5),
+                                        nn.Linear(256*6*6, 4096),
+                                        nn.ReLU())),
+                ('fc7',   nn.Sequential(nn.Dropout(0.5),
+                                        nn.Linear(4096, 4096),
+                                        nn.ReLU()))]))
+        
+        self.branches = nn.ModuleList([nn.Sequential(nn.Dropout(0.5), 
+                                                     nn.Linear(4096, 2)) for _ in range(K)])
+
+
+        if model_path is None:
+            self._load_pretrained()
+        else:
+            self._load_model(model_path)
+        self.build_param_dict()
+
+
+    def _load_pretrained(self):
+        state_dict = torch.load(model_path)
+        conv_keys = state_dict.keys()[:10]
+        for i, key in enumerate(conv_keys):
+            order = i/2
+            if key.split('.')[2] == 'weight':
+                self.layers[order][0].weight.data = state_dict[key].data
+            elif key.split('.')[2] == 'bias':
+                self.layers[order][0].bias.data = state_dict[key].data
+
+    def _load_model(self, model_path):
+        states = torch.load(model_path)
+        shared_layers = states['shared_layers']
+        self.layers.load_state_dict(shared_layers)
+
+    def build_param_dict(self):
+        self.params = OrderedDict()
+        for name, module in self.layers.named_children():
+            append_params(self.params, module, name)
+        for k, module in enumerate(self.branches):
+            append_params(self.params, module, 'fc8_%d'%(k))
+
+    def set_learnable_params(self, layers):
+        for k, p in self.params.iteritems():
+            if any([k.startswith(l) for l in layers]):
+                p.requires_grad = True
+            else:
+                p.requires_grad = False
+ 
+    def get_learnable_params(self):
+        params = OrderedDict()
+        for k, p in self.params.iteritems():
+            if p.requires_grad:
+                params[k] = p
+        return params
+
+    def forward(self, x, k=0, in_layer='conv1', out_layer='fc8', spat=False):
+        #
+        # forward model from in_layer to out_layer
+        
+        if out_layer == 'conv_last':
+            out_layer = 'conv5'
+        elif out_layer == 'fc_last':
+            out_layer = 'fc8'
+            
+        if in_layer == 'fc_first':
+            in_layer = 'fc6'
+            
+        run = False
+        for name, module in self.layers.named_children():
+            if name == in_layer:
+                run = True
+            if run:
+                x = module(x)
+                if name == 'conv5' and not spat:
+                    x = x.view(x.size(0),-1)
+                if name == out_layer:
+                    return x
+        
+        x = self.branches[k](x)
+        if out_layer=='fc8':
+            return x
+        
+        
+
